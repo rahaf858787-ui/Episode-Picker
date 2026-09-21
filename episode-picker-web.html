@@ -1,0 +1,1974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Random Episode Picker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAF7F2;
+  --bg-elevated: #FFFFFF;
+  --bg-sunken: #F0EBE1;
+  --ink: #1C1A17;
+  --ink-soft: #6B6355;
+  --ink-faint: #9B9384;
+  --border: #E2DACB;
+  --accent: #C97A2B;
+  --accent-strong: #A8621E;
+  --accent-soft: #F3DFC0;
+  --warn: #B3402C;
+  --warn-soft: #F5DCD5;
+  --focus: #2B6CB0;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-card: 0 1px 2px rgba(28, 26, 23, 0.06), 0 1px 1px rgba(28, 26, 23, 0.04);
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --bg: #17140F;
+  --bg-elevated: #211D17;
+  --bg-sunken: #100E0A;
+  --ink: #F3EDE2;
+  --ink-soft: #B8AD9A;
+  --ink-faint: #7D7362;
+  --border: #362F24;
+  --accent: #E8A33D;
+  --accent-strong: #F4B85C;
+  --accent-soft: #3B2F17;
+  --warn: #E8836E;
+  --warn-soft: #3D231C;
+  --focus: #6FA8E8;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17140F;
+    --bg-elevated: #211D17;
+    --bg-sunken: #100E0A;
+    --ink: #F3EDE2;
+    --ink-soft: #B8AD9A;
+    --ink-faint: #7D7362;
+    --border: #362F24;
+    --accent: #E8A33D;
+    --accent-strong: #F4B85C;
+    --accent-soft: #3B2F17;
+    --warn: #E8836E;
+    --warn-soft: #3D231C;
+    --focus: #6FA8E8;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+}
+
+* { box-sizing: border-box; }
+
+@keyframes pickPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(201, 122, 43, 0.45); }
+  100% { box-shadow: 0 0 0 14px rgba(201, 122, 43, 0); }
+}
+
+@keyframes watchedFlash {
+  0%   { background: var(--accent-soft); }
+  100% { background: var(--bg-elevated); }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes diceSpin {
+  0%   { transform: rotate(0deg); }
+  30%  { transform: rotate(-18deg); }
+  60%  { transform: rotate(14deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select {
+  font-family: inherit;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-right: 12px;
+  white-space: nowrap;
+}
+
+.brand .dot { color: var(--accent); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg-sunken); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1C1200;
+  font-weight: 600;
+}
+.btn-accent:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+
+.btn-danger-text { color: var(--warn); }
+
+.topbar-spacer { flex: 1; }
+
+.status-text {
+  font-size: 12px;
+  color: var(--ink-soft);
+  max-width: 320px;
+  text-align: right;
+}
+
+.main-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pane-left {
+  overflow-y: auto;
+  padding: 20px;
+  min-width: 280px;
+}
+
+.pane-divider {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  flex-shrink: 0;
+}
+.pane-divider::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 2px;
+  width: 2px;
+  background: var(--border);
+}
+.pane-divider:hover::after, .pane-divider.dragging::after {
+  background: var(--accent);
+}
+
+.pane-right {
+  overflow-y: auto;
+  padding: 20px;
+  min-width: 300px;
+  background: var(--bg-sunken);
+  border-left: 1px solid var(--border);
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: none;
+  margin: 0 0 10px;
+}
+
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.show-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.show-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.show-card-title {
+  font-weight: 600;
+  font-size: 15px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  white-space: nowrap;
+}
+
+.pill-muted {
+  background: var(--bg-sunken);
+  color: var(--ink-soft);
+}
+
+.show-card-meta {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-top: 6px;
+}
+
+.show-card-summary {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.warn-line {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--warn);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.season-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.season-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  user-select: none;
+  color: var(--ink-soft);
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.season-chip.checked {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.season-chip input { display: none; }
+
+.show-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.pick-image-wrap {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pick-image-wrap img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  animation: modalIn 0.28s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.pick-image-wrap .placeholder {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.pick-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-bottom: 14px;
+  animation: modalIn 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.pick-card.watched-flash {
+  animation: watchedFlash 0.9s ease;
+}
+
+.pick-btn-rolling {
+  animation: diceSpin 0.5s ease;
+}
+
+.pick-show-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pick-episode-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 6px 0 8px;
+}
+
+.pick-meta-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+
+.pick-summary {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.pick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+  padding: 10px 14px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 6px 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+  border: none;
+}
+
+.watched-log-line {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 16, 8, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+  animation: overlayIn 0.16s ease;
+}
+
+.modal {
+  background: var(--bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  width: 100%;
+  max-width: 720px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  resize: both;
+  overflow: auto;
+  min-width: 380px;
+  min-height: 300px;
+  animation: modalIn 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+.modal-close:hover { background: var(--bg-sunken); }
+
+.modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.search-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--ink);
+  font-size: 14px;
+}
+.search-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+.hint-text {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.browse-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.browse-card img {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+}
+
+.browse-card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.browse-card-meta {
+  font-size: 11px;
+  color: var(--ink-faint);
+  line-height: 1.4;
+}
+
+.history-row, .search-row {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+
+.history-row-header, .search-row-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.history-row-title, .search-row-title {
+  font-weight: 600;
+  font-size: 13.5px;
+  flex: 1;
+}
+
+.history-row-when {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.history-row-summary, .search-row-summary {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+
+.history-row-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+}
+
+
+@media (max-width: 760px) {
+  .main-layout { flex-direction: column; overflow-y: auto; }
+  .pane-left, .pane-right { min-width: 0; overflow-y: visible; }
+  .pane-divider { display: none; }
+  .pane-right { border-left: none; border-top: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar"></div>
+
+<div class="main-layout" id="mainLayout">
+  <div class="pane-left" id="paneLeft"></div>
+  <div class="pane-divider" id="paneDivider"></div>
+  <div class="pane-right" id="paneRight"></div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+'use strict';
+
+const TVMAZE_BASE = 'https://api.tvmaze.com';
+const LS_KEYS = {
+  shows: 'ep_picker_shows_config',
+  library: 'ep_picker_library',
+  watched: 'ep_picker_watched',
+  settings: 'ep_picker_settings',
+};
+
+function loadLS(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn('Failed to parse localStorage key', key, e);
+    return fallback;
+  }
+}
+
+function saveLS(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.warn('Failed to save localStorage key', key, e);
+  }
+}
+
+const state = {
+  config: loadLS(LS_KEYS.shows, { shows: [] }),
+  library: loadLS(LS_KEYS.library, {}),
+  watched: loadLS(LS_KEYS.watched, { watched_episode_ids: [], watched_at: {} }),
+  settings: loadLS(LS_KEYS.settings, { dark_mode: false, windows: {}, main_sash: null }),
+  shows: {},        
+  seasonChecks: {},  
+  currentPick: null,
+  excludeWatched: true,
+  equalShowWeight: true,
+};
+
+function saveConfig() { saveLS(LS_KEYS.shows, state.config); }
+function saveLibrary() { saveLS(LS_KEYS.library, state.library); }
+function saveWatched() { saveLS(LS_KEYS.watched, state.watched); }
+function saveSettings() { saveLS(LS_KEYS.settings, state.settings); }
+
+function rebuildShowsFromLibrary() {
+  state.shows = {};
+  for (const showCfg of state.config.shows) {
+    const entry = state.library[String(showCfg.tvmaze_id)];
+    if (!entry) continue;
+    state.shows[showCfg.name] = {
+      id: showCfg.tvmaze_id,
+      name: entry.canonical_name || showCfg.name,
+      enabled: showCfg.enabled !== false,
+      image: entry.image || null,
+      summary: entry.summary || '',
+      rating: entry.rating || null,
+      genres: entry.genres || [],
+      type: entry.type || '',
+      seasons: entry.seasons || {}, 
+    };
+  }
+}
+rebuildShowsFromLibrary();
+
+async function tvFetch(path, params) {
+  const url = new URL(TVMAZE_BASE + path);
+  if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`TVmaze request failed (${res.status})`);
+  return res.json();
+}
+
+const tv = {
+  searchShows: (q) => tvFetch('/search/shows', { q }),
+  getShowsPage: async (page) => {
+    try {
+      return await tvFetch('/shows', { page });
+    } catch (e) {
+      return []; 
+    }
+  },
+  getShow: (id) => tvFetch(`/shows/${id}`),
+  getEpisodes: (id) => tvFetch(`/shows/${id}/episodes`),
+};
+
+function stripHtml(text) {
+  if (!text) return '';
+  const withoutTags = text.replace(/<[^>]+>/g, '');
+  const t = document.createElement('textarea');
+  t.innerHTML = withoutTags;
+  return t.value.trim();
+}
+
+function popularityKey(show) {
+  const rating = (show.rating && show.rating.average) || 0;
+  const weight = show.weight || 0;
+  return rating * weight;
+}
+
+const EPISODIC_FRIENDLY_GENRES = new Set([
+  'Anthology', 'Children', 'Talk Show', 'Panel Show', 'Game Show',
+  'Reality', 'Food', 'Travel', 'Nature', 'Medical', 'Legal', 'Adult', 'Comedy',
+]);
+const SERIALIZED_LEANING_GENRES = new Set([
+  'Science-Fiction', 'Supernatural', 'Espionage', 'War', 'History', 'Politics', 'Family',
+]);
+
+function serializationHeuristic(show) {
+  const genres = new Set(show.genres || []);
+  const showType = show.type || '';
+
+  if (genres.has('Anthology')) {
+    return { flagged: false, reason: "Anthology genre -- episodes are typically self-contained." };
+  }
+  if (showType === 'Animation' && (genres.has('Comedy') || genres.has('Children'))) {
+    return { flagged: false, reason: 'Animated comedy -- these are usually episodic.' };
+  }
+  const hasEpisodic = [...genres].some(g => EPISODIC_FRIENDLY_GENRES.has(g));
+  const hasSerialized = [...genres].some(g => SERIALIZED_LEANING_GENRES.has(g));
+  if (hasEpisodic && !hasSerialized) {
+    return { flagged: false, reason: '' };
+  }
+  if (hasSerialized && genres.has('Drama')) {
+    const hits = [...genres].filter(g => SERIALIZED_LEANING_GENRES.has(g));
+    return { flagged: true, reason: `Genres (${hits.join(', ')} + Drama) often indicate an ongoing storyline.` };
+  }
+  if (genres.size === 1 && genres.has('Drama')) {
+    return { flagged: true, reason: 'Drama with no other genre tags often indicates character/plot arcs across episodes.' };
+  }
+  return { flagged: false, reason: '' };
+}
+
+function buildSeasons(episodes) {
+  const seasons = {};
+  for (const ep of episodes) {
+    if (ep.season === null || ep.season === undefined) continue;
+    const key = String(ep.season);
+    if (!seasons[key]) seasons[key] = [];
+    const epImg = ep.image || {};
+    seasons[key].push({
+      id: ep.id,
+      name: ep.name || `Episode ${ep.number}`,
+      number: ep.number,
+      season: ep.season,
+      airdate: ep.airdate,
+      summary: stripHtml(ep.summary),
+      image: epImg.original || epImg.medium || null,
+      rating: (ep.rating && ep.rating.average) || null,
+    });
+  }
+  for (const key of Object.keys(seasons)) {
+    seasons[key].sort((a, b) => {
+      if (a.number === null) return 1;
+      if (b.number === null) return -1;
+      return a.number - b.number;
+    });
+  }
+  return seasons;
+}
+
+function hasShowInLibrary(appidOrShowId) {
+  return state.config.shows.some(s => s.tvmaze_id === appidOrShowId);
+}
+
+async function addShowFromSummary(showSummary, statusCb) {
+  const showId = showSummary.id;
+  const name = showSummary.name;
+  if (hasShowInLibrary(showId)) {
+    if (statusCb) statusCb(`'${name}' is already in your library.`);
+    return false;
+  }
+  if (statusCb) statusCb(`Downloading '${name}'...`);
+  let episodes;
+  try {
+    episodes = await tv.getEpisodes(showId);
+  } catch (e) {
+    if (statusCb) statusCb(`Failed to fetch '${name}': ${e.message}`);
+    return false;
+  }
+  const seasons = buildSeasons(episodes);
+  const imgObj = showSummary.image || {};
+  const image = imgObj.original || imgObj.medium || null;
+
+  state.library[String(showId)] = {
+    canonical_name: name,
+    image,
+    summary: stripHtml(showSummary.summary),
+    rating: (showSummary.rating && showSummary.rating.average) || null,
+    genres: showSummary.genres || [],
+    type: showSummary.type || '',
+    seasons,
+  };
+  saveLibrary();
+
+  state.config.shows.push({ name, tvmaze_id: showId, enabled: true, disabled_seasons: [] });
+  saveConfig();
+
+  rebuildShowsFromLibrary();
+  if (statusCb) {
+    const totalEps = Object.values(seasons).reduce((a, s) => a + s.length, 0);
+    statusCb(`Added '${name}' (${totalEps} episodes).`);
+  }
+  return true;
+}
+
+function removeShow(name) {
+  const showCfg = state.config.shows.find(s => s.name === name);
+  if (!showCfg) return;
+  state.config.shows = state.config.shows.filter(s => s.name !== name);
+  saveConfig();
+  delete state.library[String(showCfg.tvmaze_id)];
+  saveLibrary();
+  delete state.shows[name];
+  delete state.seasonChecks[name];
+}
+
+async function refreshShow(name, statusCb) {
+  const showCfg = state.config.shows.find(s => s.name === name);
+  if (!showCfg) return false;
+  const showId = showCfg.tvmaze_id;
+  if (statusCb) statusCb(`Refreshing ${name}...`);
+  let episodes, showMeta;
+  try {
+    episodes = await tv.getEpisodes(showId);
+    showMeta = await tv.getShow(showId);
+  } catch (e) {
+    if (statusCb) statusCb(`Refresh failed for ${name}: ${e.message}`);
+    return false;
+  }
+  const seasons = buildSeasons(episodes);
+  const imgObj = showMeta.image || {};
+  const existing = state.library[String(showId)] || {};
+  existing.canonical_name = showMeta.name || name;
+  existing.seasons = seasons;
+  existing.image = imgObj.original || imgObj.medium || null;
+  existing.summary = stripHtml(showMeta.summary);
+  existing.rating = (showMeta.rating && showMeta.rating.average) || null;
+  existing.genres = showMeta.genres || [];
+  existing.type = showMeta.type || '';
+  state.library[String(showId)] = existing;
+  saveLibrary();
+  rebuildShowsFromLibrary();
+  if (statusCb) statusCb(`Refreshed ${name}.`);
+  return true;
+}
+
+async function refreshAllShows(statusCb) {
+  let ok = 0;
+  for (const showCfg of state.config.shows) {
+    if (await refreshShow(showCfg.name, statusCb)) ok++;
+  }
+  return ok;
+}
+
+function findEpisodeById(episodeId) {
+  for (const [showName, showData] of Object.entries(state.shows)) {
+    for (const episodes of Object.values(showData.seasons)) {
+      for (const ep of episodes) {
+        if (ep.id === episodeId) return { showName, episode: ep };
+      }
+    }
+  }
+  return null;
+}
+
+function searchEpisodes(query, limit) {
+  limit = limit || 200;
+  query = query.trim().toLowerCase();
+  if (!query) return [];
+  const results = [];
+  for (const [showName, showData] of Object.entries(state.shows)) {
+    const showMatches = showName.toLowerCase().includes(query);
+    const seasonNums = Object.keys(showData.seasons).map(Number).sort((a, b) => a - b);
+    for (const sNum of seasonNums) {
+      for (const ep of showData.seasons[sNum]) {
+        if (showMatches || (ep.name || '').toLowerCase().includes(query)) {
+          results.push({ showName, episode: ep });
+          if (results.length >= limit) return results;
+        }
+      }
+    }
+  }
+  return results;
+}
+
+function isWatched(episodeId) {
+  return state.watched.watched_episode_ids.includes(episodeId);
+}
+
+function markWatched(episodeId) {
+  if (!state.watched.watched_episode_ids.includes(episodeId)) {
+    state.watched.watched_episode_ids.push(episodeId);
+  }
+  state.watched.watched_at[String(episodeId)] = new Date().toISOString();
+  saveWatched();
+}
+
+function unmarkWatched(episodeId) {
+  state.watched.watched_episode_ids = state.watched.watched_episode_ids.filter(id => id !== episodeId);
+  delete state.watched.watched_at[String(episodeId)];
+  saveWatched();
+}
+
+function watchedTimestamp(episodeId) {
+  return state.watched.watched_at[String(episodeId)] || null;
+}
+
+function applyTheme() {
+  const root = document.documentElement;
+  root.setAttribute('data-theme', state.settings.dark_mode ? 'dark' : 'light');
+}
+applyTheme();
+
+function toggleDarkMode() {
+  state.settings.dark_mode = !state.settings.dark_mode;
+  saveSettings();
+  applyTheme();
+  renderTopbar();
+}
+
+function setupPaneDivider() {
+  const divider = document.getElementById('paneDivider');
+  const left = document.getElementById('paneLeft');
+  const layout = document.getElementById('mainLayout');
+
+  function applySash(px) {
+    left.style.flex = `0 0 ${px}px`;
+  }
+
+  const saved = state.settings.main_sash;
+  if (saved) applySash(saved);
+  else left.style.flex = '2 1 0';
+
+  let dragging = false;
+  divider.addEventListener('mousedown', () => {
+    dragging = true;
+    divider.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const rect = layout.getBoundingClientRect();
+    const px = Math.max(240, Math.min(rect.width - 260, e.clientX - rect.left));
+    applySash(px);
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    divider.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    const rect = left.getBoundingClientRect();
+    state.settings.main_sash = Math.round(rect.width);
+    saveSettings();
+  });
+}
+
+let statusTimeout = null;
+function setStatus(msg) {
+  const el = document.getElementById('statusText');
+  if (el) el.textContent = msg;
+}
+
+function renderTopbar() {
+  const bar = document.getElementById('topbar');
+  bar.innerHTML = '';
+
+  const brand = document.createElement('div');
+  brand.className = 'brand';
+  brand.innerHTML = 'Episode Picker<span class="dot">.</span>';
+  bar.appendChild(brand);
+
+  const addShowsBtn = mkBtn('+ Add Shows', openAddShowsModal);
+  const searchBtn = mkBtn('Search Episodes', openSearchEpisodesModal);
+  const refreshBtn = mkBtn('Refresh all', onRefreshAll);
+  const selectAllBtn = mkBtn('Select all seasons', () => setAllSeasons(true));
+  const clearAllBtn = mkBtn('Clear all seasons', () => setAllSeasons(false));
+  const historyBtn = mkBtn('Watch History', openWatchHistoryModal);
+  const darkBtn = mkBtn(state.settings.dark_mode ? '☀ Light Mode' : '🌙 Dark Mode', toggleDarkMode);
+
+  [addShowsBtn, searchBtn, refreshBtn, selectAllBtn, clearAllBtn, historyBtn, darkBtn]
+    .forEach(b => bar.appendChild(b));
+
+  const spacer = document.createElement('div');
+  spacer.className = 'topbar-spacer';
+  bar.appendChild(spacer);
+
+  const status = document.createElement('div');
+  status.className = 'status-text';
+  status.id = 'statusText';
+  status.textContent = 'Ready.';
+  bar.appendChild(status);
+}
+
+function mkBtn(label, onClick, opts) {
+  opts = opts || {};
+  const b = document.createElement('button');
+  b.className = 'btn' + (opts.accent ? ' btn-accent' : '') + (opts.block ? ' btn-block' : '') + (opts.danger ? ' btn-danger-text' : '');
+  b.textContent = label;
+  b.disabled = !!opts.disabled;
+  if (onClick) b.addEventListener('click', onClick);
+  return b;
+}
+
+function ensureSeasonChecksForShow(name, showData, showCfg) {
+  if (!state.seasonChecks[name]) state.seasonChecks[name] = {};
+  const disabled = new Set(showCfg.disabled_seasons || []);
+  for (const sNumStr of Object.keys(showData.seasons)) {
+    const sNum = Number(sNumStr);
+    if (!(sNum in state.seasonChecks[name])) {
+      state.seasonChecks[name][sNum] = !disabled.has(sNum);
+    }
+  }
+}
+
+function persistSeasonChecksForShow(name, showCfg) {
+  const checks = state.seasonChecks[name] || {};
+  const disabled = Object.entries(checks).filter(([, v]) => !v).map(([k]) => Number(k)).sort((a, b) => a - b);
+  showCfg.disabled_seasons = disabled;
+  saveConfig();
+}
+
+function renderLeftPane() {
+  const pane = document.getElementById('paneLeft');
+  pane.innerHTML = '';
+
+  const title = document.createElement('div');
+  title.className = 'section-title';
+  title.textContent = 'Your Shows & Seasons';
+  pane.appendChild(title);
+
+  if (state.config.shows.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = "No shows yet. Click '+ Add Shows' above to browse or search TVmaze.";
+    pane.appendChild(empty);
+    return;
+  }
+
+  for (const showCfg of state.config.shows) {
+    const name = showCfg.name;
+    const showData = state.shows[name];
+    pane.appendChild(renderShowCard(showCfg, showData));
+  }
+}
+
+function renderShowCard(showCfg, showData) {
+  const name = showCfg.name;
+  const card = document.createElement('div');
+  card.className = 'show-card';
+
+  const header = document.createElement('div');
+  header.className = 'show-card-header';
+
+  const enabledCb = document.createElement('input');
+  enabledCb.type = 'checkbox';
+  enabledCb.checked = showCfg.enabled !== false;
+  enabledCb.addEventListener('change', () => {
+    showCfg.enabled = enabledCb.checked;
+    saveConfig();
+  });
+  header.appendChild(enabledCb);
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'show-card-title';
+  titleEl.textContent = showData ? name : `${name} (data missing — try Refresh)`;
+  header.appendChild(titleEl);
+
+  if (showData && showData.rating) {
+    const ratingPill = document.createElement('span');
+    ratingPill.className = 'pill';
+    ratingPill.textContent = `★ ${showData.rating}`;
+    header.appendChild(ratingPill);
+  }
+
+  if (showData) {
+    let totalEps = 0, watchedEps = 0;
+    for (const eps of Object.values(showData.seasons)) {
+      totalEps += eps.length;
+      watchedEps += eps.filter(e => isWatched(e.id)).length;
+    }
+    const pct = totalEps ? Math.round((100 * watchedEps) / totalEps) : 0;
+    const watchedPill = document.createElement('span');
+    watchedPill.className = 'pill pill-muted';
+    watchedPill.textContent = `${pct}% watched (${watchedEps}/${totalEps})`;
+    header.appendChild(watchedPill);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'show-actions';
+  const removeBtn = mkBtn('Remove', () => onRemoveShow(name), { danger: true });
+  actions.appendChild(removeBtn);
+  header.appendChild(actions);
+
+  card.appendChild(header);
+
+  if (!showData) return card;
+
+  if (showData.genres && showData.genres.length) {
+    const meta = document.createElement('div');
+    meta.className = 'show-card-meta';
+    meta.textContent = showData.genres.join(', ');
+    card.appendChild(meta);
+  }
+
+  const { flagged, reason } = serializationHeuristic(showData);
+  if (flagged) {
+    const warn = document.createElement('div');
+    warn.className = 'warn-line';
+    warn.textContent = `⚠ Not recommended for random-episode viewing${reason ? ' — ' + reason : ''}`;
+    card.appendChild(warn);
+  }
+
+  if (showData.summary) {
+    const summary = document.createElement('div');
+    summary.className = 'show-card-summary';
+    const short = showData.summary.length > 200 ? showData.summary.slice(0, 197).split(' ').slice(0, -1).join(' ') + '...' : showData.summary;
+    summary.textContent = short;
+    card.appendChild(summary);
+  }
+
+  ensureSeasonChecksForShow(name, showData, showCfg);
+
+  const seasonRow = document.createElement('div');
+  seasonRow.className = 'season-row';
+  const seasonNums = Object.keys(showData.seasons).map(Number).sort((a, b) => a - b);
+  for (const sNum of seasonNums) {
+    const eps = showData.seasons[sNum];
+    const watchedInSeason = eps.filter(e => isWatched(e.id)).length;
+    const chip = document.createElement('label');
+    chip.className = 'season-chip' + (state.seasonChecks[name][sNum] ? ' checked' : '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!state.seasonChecks[name][sNum];
+    cb.addEventListener('change', () => {
+      state.seasonChecks[name][sNum] = cb.checked;
+      chip.classList.toggle('checked', cb.checked);
+      persistSeasonChecksForShow(name, showCfg);
+    });
+    chip.appendChild(cb);
+    const label = document.createElement('span');
+    label.textContent = `S${sNum} (${watchedInSeason}/${eps.length})`;
+    chip.appendChild(label);
+    seasonRow.appendChild(chip);
+  }
+  card.appendChild(seasonRow);
+
+  return card;
+}
+
+function setAllSeasons(value) {
+  for (const showCfg of state.config.shows) {
+    const name = showCfg.name;
+    const showData = state.shows[name];
+    if (!showData) continue;
+    ensureSeasonChecksForShow(name, showData, showCfg);
+    for (const sNum of Object.keys(state.seasonChecks[name])) {
+      state.seasonChecks[name][sNum] = value;
+    }
+    persistSeasonChecksForShow(name, showCfg);
+  }
+  renderLeftPane();
+}
+
+function onRemoveShow(name) {
+  if (!confirm(`Remove '${name}' from your library? This deletes its stored episode data too.`)) return;
+  removeShow(name);
+  renderLeftPane();
+  setStatus(`Removed '${name}'.`);
+}
+
+async function onRefreshAll() {
+  if (state.config.shows.length === 0) {
+    alert("You haven't added any shows yet. Click '+ Add Shows' to get started.");
+    return;
+  }
+  setStatus('Refreshing from TVmaze...');
+  const ok = await refreshAllShows(setStatus);
+  setStatus(`Refreshed ${ok}/${state.config.shows.length} shows.`);
+  renderLeftPane();
+}
+
+function renderRightPane() {
+  const pane = document.getElementById('paneRight');
+  pane.innerHTML = '';
+
+  const title = document.createElement('div');
+  title.className = 'section-title';
+  title.textContent = 'Random Pick';
+  pane.appendChild(title);
+
+  const imgWrap = document.createElement('div');
+  imgWrap.className = 'pick-image-wrap';
+  imgWrap.id = 'pickImageWrap';
+  imgWrap.innerHTML = '<span class="placeholder">No episode picked yet</span>';
+  pane.appendChild(imgWrap);
+
+  const pickCard = document.createElement('div');
+  pickCard.className = 'pick-card';
+  pickCard.id = 'pickCard';
+  pickCard.style.display = 'none';
+  pane.appendChild(pickCard);
+
+  const actions = document.createElement('div');
+  actions.className = 'pick-actions';
+
+  const pickBtn = mkBtn('🎲 Pick Random Episode', onPickRandom, { accent: true, block: true });
+  pickBtn.id = 'pickBtn';
+  const watchedBtn = mkBtn('✔ Set as Watched', onMarkWatched, { block: true, disabled: true });
+  watchedBtn.id = 'watchedBtn';
+
+  actions.appendChild(pickBtn);
+  actions.appendChild(watchedBtn);
+  pane.appendChild(actions);
+
+  pane.appendChild(mkDivider());
+
+  const excludeToggle = mkToggle('Exclude watched episodes from random pool', state.excludeWatched, (v) => {
+    state.excludeWatched = v;
+  });
+  pane.appendChild(excludeToggle);
+
+  const equalWeightToggle = mkToggle('Give every show equal odds (off = weight by episode count)', state.equalShowWeight, (v) => {
+    state.equalShowWeight = v;
+  });
+  pane.appendChild(equalWeightToggle);
+
+  pane.appendChild(mkDivider());
+
+  const watchedLogTitle = document.createElement('div');
+  watchedLogTitle.className = 'section-title';
+  watchedLogTitle.textContent = 'Watched log';
+  pane.appendChild(watchedLogTitle);
+
+  const watchedCount = document.createElement('div');
+  watchedCount.className = 'watched-log-line';
+  watchedCount.id = 'watchedCountLine';
+  watchedCount.textContent = `${state.watched.watched_episode_ids.length} episode(s) marked watched.`;
+  pane.appendChild(watchedCount);
+
+  const resetBtn = mkBtn('Reset watched history...', onResetWatched, { danger: true });
+  pane.appendChild(resetBtn);
+
+  if (state.currentPick) renderPick(state.currentPick.showName, state.currentPick.episode);
+}
+
+function mkDivider() {
+  const hr = document.createElement('hr');
+  hr.className = 'divider';
+  return hr;
+}
+
+function mkToggle(label, initial, onChange) {
+  const row = document.createElement('label');
+  row.className = 'toggle-row';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = initial;
+  cb.addEventListener('change', () => onChange(cb.checked));
+  row.appendChild(cb);
+  const span = document.createElement('span');
+  span.textContent = label;
+  row.appendChild(span);
+  return row;
+}
+
+function gatherCandidatePool() {
+  const poolByShow = {};
+  for (const showCfg of state.config.shows) {
+    const name = showCfg.name;
+    if (showCfg.enabled === false) continue;
+    const showData = state.shows[name];
+    if (!showData) continue;
+    ensureSeasonChecksForShow(name, showData, showCfg);
+    const showEpisodes = [];
+    for (const sNum of Object.keys(state.seasonChecks[name])) {
+      if (!state.seasonChecks[name][sNum]) continue;
+      const eps = showData.seasons[sNum] || [];
+      for (const ep of eps) {
+        if (state.excludeWatched && isWatched(ep.id)) continue;
+        showEpisodes.push(ep);
+      }
+    }
+    if (showEpisodes.length) poolByShow[showData.name] = showEpisodes;
+  }
+  return poolByShow;
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+let activeShuffleInterval = null;
+
+function onPickRandom() {
+  const poolByShow = gatherCandidatePool();
+  const showNames = Object.keys(poolByShow);
+  if (showNames.length === 0) {
+    alert(
+      "No episodes match your current filters.\n\n" +
+      "Check that at least one show is added and enabled, at least one season is checked, " +
+      "and (if 'exclude watched' is on) that not everything has been watched already."
+    );
+    return;
+  }
+
+  let showName, episode;
+  if (state.equalShowWeight) {
+    showName = showNames[Math.floor(Math.random() * showNames.length)];
+    const eps = poolByShow[showName];
+    episode = eps[Math.floor(Math.random() * eps.length)];
+  } else {
+    const flatPool = [];
+    for (const [sName, eps] of Object.entries(poolByShow)) {
+      for (const ep of eps) flatPool.push([sName, ep]);
+    }
+    const [sName, ep] = flatPool[Math.floor(Math.random() * flatPool.length)];
+    showName = sName;
+    episode = ep;
+  }
+
+  const pickBtn = document.getElementById('pickBtn');
+  if (pickBtn) {
+    pickBtn.classList.remove('pick-btn-rolling');
+    void pickBtn.offsetWidth; 
+    pickBtn.classList.add('pick-btn-rolling');
+  }
+
+  if (activeShuffleInterval !== null) {
+    clearInterval(activeShuffleInterval);
+    activeShuffleInterval = null;
+  }
+
+  const settle = () => {
+    activeShuffleInterval = null;
+    state.currentPick = { showName, episode };
+    renderPick(showName, episode);
+    const watchedBtn = document.getElementById('watchedBtn');
+    if (watchedBtn) watchedBtn.disabled = false;
+  };
+
+  if (prefersReducedMotion() || showNames.length < 2) {
+    settle();
+    return;
+  }
+
+  
+
+  
+  const imgWrap = document.getElementById('pickImageWrap');
+  const decoyPool = showNames.filter(n => n !== showName);
+  const flickers = Math.min(5, Math.max(2, decoyPool.length));
+  let i = 0;
+  if (imgWrap) imgWrap.innerHTML = `<span class="placeholder">${escapeAttr(decoyPool[0] || showName)}…</span>`;
+
+  activeShuffleInterval = setInterval(() => {
+    i++;
+    const liveImgWrap = document.getElementById('pickImageWrap');
+    if (!liveImgWrap) {
+
+      clearInterval(activeShuffleInterval);
+      settle();
+      return;
+    }
+    if (i >= flickers) {
+      clearInterval(activeShuffleInterval);
+      settle();
+      return;
+    }
+    const decoyName = decoyPool[i % decoyPool.length] || showName;
+    liveImgWrap.innerHTML = `<span class="placeholder">${escapeAttr(decoyName)}…</span>`;
+  }, 90);
+}
+
+function renderPick(showName, episode, opts) {
+  opts = opts || {};
+  const imgWrap = document.getElementById('pickImageWrap');
+  const pickCard = document.getElementById('pickCard');
+  if (!imgWrap || !pickCard) return;
+
+  if (episode.image) {
+    imgWrap.innerHTML = `<img src="${escapeAttr(episode.image)}" alt="">`;
+  } else {
+    imgWrap.innerHTML = '<span class="placeholder">No image available</span>';
+  }
+
+  pickCard.style.display = '';
+  pickCard.innerHTML = '';
+  pickCard.classList.remove('watched-flash');
+  if (opts.flashWatched) {
+    void pickCard.offsetWidth;
+    pickCard.classList.add('watched-flash');
+  } else {
+    pickCard.style.animation = 'none';
+    void pickCard.offsetWidth; 
+    pickCard.style.animation = '';
+  }
+
+  const showLabel = document.createElement('div');
+  showLabel.className = 'pick-show-name';
+  showLabel.textContent = showName;
+  pickCard.appendChild(showLabel);
+
+  const epTitle = document.createElement('div');
+  epTitle.className = 'pick-episode-title';
+  const watchedFlag = isWatched(episode.id) ? ' (already watched)' : '';
+  epTitle.textContent = `${episode.name}${watchedFlag}`;
+  pickCard.appendChild(epTitle);
+
+  const metaRow = document.createElement('div');
+  metaRow.className = 'pick-meta-row';
+  const epNum = episode.number !== null && episode.number !== undefined ? episode.number : '?';
+  metaRow.appendChild(mkMetaSpan(`S${episode.season}E${epNum}`));
+  metaRow.appendChild(mkMetaSpan(episode.airdate || 'Air date unknown'));
+  metaRow.appendChild(mkMetaSpan(episode.rating ? `★ ${episode.rating}` : 'Not yet rated'));
+  pickCard.appendChild(metaRow);
+
+  if (episode.summary) {
+    const summary = document.createElement('div');
+    summary.className = 'pick-summary';
+    summary.textContent = episode.summary;
+    pickCard.appendChild(summary);
+  }
+}
+
+function mkMetaSpan(text) {
+  const span = document.createElement('span');
+  span.textContent = text;
+  return span;
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/"/g, '&quot;');
+}
+
+function onMarkWatched() {
+  if (!state.currentPick) return;
+  const { episode, showName } = state.currentPick;
+  markWatched(episode.id);
+  renderPick(showName, episode, { flashWatched: true });
+  renderLeftPane();
+  updateWatchedCountLine();
+  setStatus(`Marked '${episode.name}' as watched.`);
+}
+
+function updateWatchedCountLine() {
+  const el = document.getElementById('watchedCountLine');
+  if (el) el.textContent = `${state.watched.watched_episode_ids.length} episode(s) marked watched.`;
+}
+
+function onResetWatched() {
+  if (state.watched.watched_episode_ids.length === 0) {
+    alert('No watched episodes to clear.');
+    return;
+  }
+  if (!confirm(`This will clear all ${state.watched.watched_episode_ids.length} watched episode(s). Continue?`)) return;
+  state.watched.watched_episode_ids = [];
+  state.watched.watched_at = {};
+  saveWatched();
+  updateWatchedCountLine();
+  renderLeftPane();
+  setStatus('Watched history cleared.');
+}
+
+function onWatchedChangedExternally() {
+  updateWatchedCountLine();
+  renderLeftPane();
+  if (state.currentPick) renderPick(state.currentPick.showName, state.currentPick.episode);
+}
+
+/* ==========================================================================
+   Modal system
+   ========================================================================== */
+
+function openModal(titleText, bodyBuilder, opts) {
+  opts = opts || {};
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = '';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  if (opts.maxWidth) modal.style.maxWidth = opts.maxWidth;
+
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'modal-title';
+  titleEl.textContent = titleText;
+  header.appendChild(titleEl);
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'modal-close';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.setAttribute('aria-label', 'Close');
+  closeBtn.addEventListener('click', closeModal);
+  header.appendChild(closeBtn);
+  modal.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'modal-body';
+  modal.appendChild(body);
+
+  overlay.appendChild(modal);
+  overlay.addEventListener('mousedown', (e) => {
+    if (e.target === overlay) closeModal();
+  });
+  document.addEventListener('keydown', onModalEscape);
+
+  root.appendChild(overlay);
+  bodyBuilder(body, modal);
+  return { modal, body };
+}
+
+function onModalEscape(e) {
+  if (e.key === 'Escape') closeModal();
+}
+
+function closeModal() {
+  document.getElementById('modalRoot').innerHTML = '';
+  document.removeEventListener('keydown', onModalEscape);
+}
+
+/* ==========================================================================
+   Add Shows modal
+   ========================================================================== */
+
+let addShowsState = { popularList: [], offset: 0, mode: 'popular' };
+const ADD_SHOWS_PAGE_SIZE = 24;
+
+function openAddShowsModal() {
+  addShowsState = { popularList: [], offset: 0, mode: 'popular' };
+  const { body } = openModal('Add Shows', (body) => {
+    const controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.gap = '8px';
+    controls.style.flexWrap = 'wrap';
+    controls.style.marginBottom = '4px';
+
+    const searchInput = document.createElement('input');
+    searchInput.className = 'search-input';
+    searchInput.style.flex = '1';
+    searchInput.style.minWidth = '160px';
+    searchInput.placeholder = 'Search TVmaze by show name...';
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doShowSearch(searchInput.value);
+    });
+    controls.appendChild(searchInput);
+
+    controls.appendChild(mkBtn('Search', () => doShowSearch(searchInput.value)));
+    controls.appendChild(mkBtn('Show Popular', () => loadPopularShows()));
+    body.appendChild(controls);
+
+    const hint = document.createElement('div');
+    hint.className = 'hint-text';
+    hint.textContent = 'Popular sorted by TVmaze rating × relevance weight (no official "most popular" endpoint exists). ⚠ warnings are a genre-based guess, not a verdict.';
+    body.appendChild(hint);
+
+    const status = document.createElement('div');
+    status.className = 'hint-text';
+    status.id = 'addShowsStatus';
+    status.style.marginTop = '4px';
+    status.textContent = 'Loading popular shows...';
+    body.appendChild(status);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid-cards';
+    grid.id = 'addShowsGrid';
+    body.appendChild(grid);
+
+    const loadMoreWrap = document.createElement('div');
+    loadMoreWrap.style.textAlign = 'center';
+    loadMoreWrap.style.marginTop = '14px';
+    const loadMoreBtn = mkBtn('Load more', loadMorePopular);
+    loadMoreBtn.id = 'loadMoreBtn';
+    loadMoreWrap.appendChild(loadMoreBtn);
+    body.appendChild(loadMoreWrap);
+
+    searchInput.focus();
+  }, { maxWidth: '820px' });
+
+  loadPopularShows();
+}
+
+async function loadPopularShows() {
+  addShowsState.mode = 'popular';
+  addShowsState.offset = 0;
+  setAddShowsStatus('Loading popular shows...');
+  document.getElementById('addShowsGrid').innerHTML = '';
+
+  const allShows = [];
+  for (let page = 0; page < 5; page++) {
+    const pageShows = await tv.getShowsPage(page);
+    if (!pageShows.length) break;
+    allShows.push(...pageShows);
+  }
+  allShows.sort((a, b) => popularityKey(b) - popularityKey(a));
+  addShowsState.popularList = allShows;
+  showNextPopularPage();
+}
+
+function showNextPopularPage() {
+  const start = addShowsState.offset;
+  const end = start + ADD_SHOWS_PAGE_SIZE;
+  const slice = addShowsState.popularList.slice(start, end);
+  addShowsState.offset = end;
+  setAddShowsStatus(`Showing ${Math.min(end, addShowsState.popularList.length)} of ${addShowsState.popularList.length} popular shows.`);
+  renderAddShowsCards(slice, start > 0);
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (loadMoreBtn) loadMoreBtn.disabled = end >= addShowsState.popularList.length;
+}
+
+function loadMorePopular() {
+  if (addShowsState.mode !== 'popular') return;
+  showNextPopularPage();
+}
+
+async function doShowSearch(query) {
+  query = (query || '').trim();
+  if (!query) { loadPopularShows(); return; }
+  addShowsState.mode = 'search';
+  setAddShowsStatus(`Searching for '${query}'...`);
+  document.getElementById('addShowsGrid').innerHTML = '';
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  if (loadMoreBtn) loadMoreBtn.disabled = true;
+
+  let results;
+  try {
+    results = await tv.searchShows(query);
+  } catch (e) {
+    setAddShowsStatus(`Search failed: ${e.message}`);
+    return;
+  }
+  const shows = results.map(r => r.show);
+  setAddShowsStatus(`${shows.length} result(s).`);
+  renderAddShowsCards(shows, false);
+}
+
+function setAddShowsStatus(text) {
+  const el = document.getElementById('addShowsStatus');
+  if (el) el.textContent = text;
+}
+
+function renderAddShowsCards(shows, append) {
+  const grid = document.getElementById('addShowsGrid');
+  if (!grid) return;
+  if (!append) grid.innerHTML = '';
+  for (const show of shows) {
+    grid.appendChild(buildShowCard(show));
+  }
+}
+
+function buildShowCard(show) {
+  const alreadyAdded = hasShowInLibrary(show.id);
+  const card = document.createElement('div');
+  card.className = 'browse-card';
+
+  const img = document.createElement('img');
+  const imgObj = show.image || {};
+  img.src = imgObj.medium || imgObj.original || '';
+  img.alt = '';
+  if (!imgObj.medium && !imgObj.original) img.style.display = 'none';
+  card.appendChild(img);
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'browse-card-title';
+  nameEl.textContent = show.name;
+  card.appendChild(nameEl);
+
+  const year = show.premiered ? show.premiered.slice(0, 4) : '—';
+  const rating = show.rating && show.rating.average;
+  const metaEl = document.createElement('div');
+  metaEl.className = 'browse-card-meta';
+  metaEl.textContent = `${year} ${rating ? '★ ' + rating : ''}`;
+  card.appendChild(metaEl);
+
+  const genres = show.genres || [];
+  if (genres.length) {
+    const genreEl = document.createElement('div');
+    genreEl.className = 'browse-card-meta';
+    genreEl.textContent = genres.join(', ');
+    card.appendChild(genreEl);
+  }
+
+  const { flagged, reason } = serializationHeuristic(show);
+  if (flagged) {
+    const warnEl = document.createElement('div');
+    warnEl.className = 'warn-line';
+    warnEl.style.fontSize = '10.5px';
+    warnEl.textContent = '⚠ Not recommended' + (reason ? ' — ' + reason : '');
+    card.appendChild(warnEl);
+  }
+
+  const btn = mkBtn(alreadyAdded ? 'Added ✓' : 'Add', null, { block: true, disabled: alreadyAdded, accent: !alreadyAdded });
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = 'Adding...';
+    const success = await addShowFromSummary(show, setAddShowsStatus);
+    if (success) {
+      btn.textContent = 'Added ✓';
+      renderLeftPane();
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Add';
+    }
+  });
+  card.appendChild(btn);
+
+  return card;
+}
+
+/* ==========================================================================
+   Watch History modal
+   ========================================================================== */
+
+function openWatchHistoryModal() {
+  openModal('Watch History', (body) => {
+    const countLine = document.createElement('div');
+    countLine.className = 'hint-text';
+    countLine.id = 'historyCount';
+    body.appendChild(countLine);
+
+    const list = document.createElement('div');
+    list.id = 'historyList';
+    list.style.marginTop = '10px';
+    body.appendChild(list);
+
+    renderWatchHistoryList();
+  }, { maxWidth: '680px' });
+}
+
+function renderWatchHistoryList() {
+  const list = document.getElementById('historyList');
+  const countLine = document.getElementById('historyCount');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const entries = [];
+  for (const episodeId of state.watched.watched_episode_ids) {
+    const found = findEpisodeById(episodeId);
+    if (!found) continue;
+    entries.push({ ts: watchedTimestamp(episodeId), showName: found.showName, episode: found.episode });
+  }
+
+  const timestamped = entries.filter(e => e.ts).sort((a, b) => (a.ts < b.ts ? 1 : -1));
+  const untimestamped = entries.filter(e => !e.ts).sort((a, b) => a.episode.id - b.episode.id);
+  const ordered = [...timestamped, ...untimestamped];
+
+  countLine.textContent = `${ordered.length} episode(s) watched`;
+
+  if (ordered.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'No watched episodes yet. Mark some as watched from the main window.';
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const entry of ordered) {
+    list.appendChild(buildHistoryRow(entry));
+  }
+}
+
+function buildHistoryRow(entry) {
+  const { ts, showName, episode } = entry;
+  const row = document.createElement('div');
+  row.className = 'history-row';
+
+  const header = document.createElement('div');
+  header.className = 'history-row-header';
+
+  const epNum = episode.number !== null && episode.number !== undefined ? episode.number : '?';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'history-row-title';
+  titleEl.textContent = `${showName} — S${episode.season}E${epNum}`;
+  header.appendChild(titleEl);
+
+  const whenEl = document.createElement('div');
+  whenEl.className = 'history-row-when';
+  whenEl.textContent = formatWhen(ts);
+  header.appendChild(whenEl);
+
+  row.appendChild(header);
+
+  if (episode.name) {
+    const nameEl = document.createElement('div');
+    nameEl.className = 'history-row-summary';
+    nameEl.textContent = `"${episode.name}"`;
+    row.appendChild(nameEl);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'history-row-actions';
+  actions.appendChild(mkBtn('Set episode viewer to this', () => {
+    state.currentPick = { showName, episode };
+    renderPick(showName, episode);
+    const watchedBtn = document.getElementById('watchedBtn');
+    if (watchedBtn) watchedBtn.disabled = false;
+    setStatus(`Viewing '${episode.name}' from watch history.`);
+  }));
+  actions.appendChild(mkBtn('Remove', () => {
+    const label = `${showName} S${episode.season}E${epNum} — "${episode.name || ''}"`;
+    if (!confirm(`Remove this episode from watch history?\n\n${label}\n\nIt will be un-marked as watched and can be picked randomly again.`)) return;
+    unmarkWatched(episode.id);
+    renderWatchHistoryList();
+    onWatchedChangedExternally();
+  }, { danger: true }));
+  row.appendChild(actions);
+
+  return row;
+}
+
+function formatWhen(tsStr) {
+  if (!tsStr) return 'date unknown';
+  const d = new Date(tsStr);
+  if (isNaN(d.getTime())) return 'date unknown';
+  return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/* ==========================================================================
+   Search Episodes modal
+   ========================================================================== */
+
+function openSearchEpisodesModal() {
+  openModal('Search Episodes', (body) => {
+    const input = document.createElement('input');
+    input.className = 'search-input';
+    input.placeholder = 'Search by show name or episode title...';
+    body.appendChild(input);
+
+    const status = document.createElement('div');
+    status.className = 'hint-text';
+    status.id = 'searchEpStatus';
+    status.textContent = 'Search by show name or episode title.';
+    body.appendChild(status);
+
+    const list = document.createElement('div');
+    list.id = 'searchEpList';
+    list.style.marginTop = '10px';
+    body.appendChild(list);
+
+    input.addEventListener('input', () => runEpisodeSearch(input.value));
+    input.focus();
+  }, { maxWidth: '680px' });
+}
+
+function runEpisodeSearch(query) {
+  const status = document.getElementById('searchEpStatus');
+  const list = document.getElementById('searchEpList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  query = (query || '').trim();
+  if (!query) {
+    status.textContent = 'Search by show name or episode title.';
+    return;
+  }
+
+  const results = searchEpisodes(query);
+  if (!results.length) {
+    status.textContent = 'No matching episodes.';
+    return;
+  }
+  const cappedNote = results.length >= 200 ? ' (showing first 200)' : '';
+  status.textContent = `${results.length} result(s)${cappedNote}.`;
+
+  for (const { showName, episode } of results) {
+    list.appendChild(buildSearchRow(showName, episode));
+  }
+}
+
+function buildSearchRow(showName, episode) {
+  const row = document.createElement('div');
+  row.className = 'search-row';
+
+  const header = document.createElement('div');
+  header.className = 'search-row-header';
+
+  const epNum = episode.number !== null && episode.number !== undefined ? episode.number : '?';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'search-row-title';
+  titleEl.textContent = `${showName} — S${episode.season}E${epNum}`;
+  header.appendChild(titleEl);
+
+  const label = document.createElement('label');
+  label.className = 'checkbox-row';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = isWatched(episode.id);
+  cb.addEventListener('change', () => {
+    if (cb.checked) markWatched(episode.id);
+    else unmarkWatched(episode.id);
+    onWatchedChangedExternally();
+  });
+  label.appendChild(cb);
+  const labelText = document.createElement('span');
+  labelText.textContent = 'Watched';
+  label.appendChild(labelText);
+  header.appendChild(label);
+
+  row.appendChild(header);
+
+  if (episode.name) {
+    const nameEl = document.createElement('div');
+    nameEl.className = 'search-row-summary';
+    nameEl.textContent = `"${episode.name}"`;
+    row.appendChild(nameEl);
+  }
+
+  return row;
+}
+
+/* ==========================================================================
+   Init
+   ========================================================================== */
+
+function init() {
+  applyTheme();
+  renderTopbar();
+  renderLeftPane();
+  renderRightPane();
+  setupPaneDivider();
+}
+
+init();
+
+</script>
+</body>
+</html>
