@@ -126,14 +126,6 @@ input, select {
   font-family: inherit;
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px; height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
 .topbar {
   display: flex;
   align-items: center;
@@ -261,6 +253,20 @@ input, select {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.show-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.show-reorder-btn {
+  padding: 2px 6px;
+  font-size: 10px;
+  line-height: 1;
+  min-width: 22px;
+  justify-content: center;
 }
 
 .show-card-title {
@@ -618,7 +624,6 @@ input, select {
   cursor: pointer;
   user-select: none;
 }
-
 
 @media (max-width: 760px) {
   .main-layout { flex-direction: column; overflow-y: auto; }
@@ -1064,6 +1069,17 @@ function persistSeasonChecksForShow(name, showCfg) {
   saveConfig();
 }
 
+function moveShow(index, direction) {
+  const shows = state.config.shows;
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= shows.length) return;
+  const temp = shows[index];
+  shows[index] = shows[targetIndex];
+  shows[targetIndex] = temp;
+  saveConfig();
+  renderLeftPane();
+}
+
 function renderLeftPane() {
   const pane = document.getElementById('paneLeft');
   pane.innerHTML = '';
@@ -1081,20 +1097,32 @@ function renderLeftPane() {
     return;
   }
 
-  for (const showCfg of state.config.shows) {
+  state.config.shows.forEach((showCfg, index) => {
     const name = showCfg.name;
     const showData = state.shows[name];
-    pane.appendChild(renderShowCard(showCfg, showData));
-  }
+    pane.appendChild(renderShowCard(showCfg, showData, index, state.config.shows.length));
+  });
 }
 
-function renderShowCard(showCfg, showData) {
+function renderShowCard(showCfg, showData, index, total) {
   const name = showCfg.name;
   const card = document.createElement('div');
   card.className = 'show-card';
 
   const header = document.createElement('div');
   header.className = 'show-card-header';
+
+  const reorderCol = document.createElement('div');
+  reorderCol.className = 'show-reorder';
+  const upBtn = mkBtn('▲', () => moveShow(index, -1), { disabled: index === 0 });
+  const downBtn = mkBtn('▼', () => moveShow(index, 1), { disabled: index === total - 1 });
+  upBtn.className += ' show-reorder-btn';
+  downBtn.className += ' show-reorder-btn';
+  upBtn.setAttribute('aria-label', `Move ${name} up`);
+  downBtn.setAttribute('aria-label', `Move ${name} down`);
+  reorderCol.appendChild(upBtn);
+  reorderCol.appendChild(downBtn);
+  header.appendChild(reorderCol);
 
   const enabledCb = document.createElement('input');
   enabledCb.type = 'checkbox';
@@ -1389,7 +1417,7 @@ function onPickRandom() {
   }
 
   
-
+  
   
   const imgWrap = document.getElementById('pickImageWrap');
   const decoyPool = showNames.filter(n => n !== showName);
@@ -1401,7 +1429,7 @@ function onPickRandom() {
     i++;
     const liveImgWrap = document.getElementById('pickImageWrap');
     if (!liveImgWrap) {
-
+      
       clearInterval(activeShuffleInterval);
       settle();
       return;
